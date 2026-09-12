@@ -28,13 +28,12 @@ export default function Page() {
   const serialRef = useRef<EzmakerSerial | null>(null);
   const stopMockRef = useRef<(() => void) | null>(null);
 
-  const { onLine, setSerialState, serialState, mock, setMock } = useStore((s) => ({
-    onLine: s.onLine,
-    setSerialState: s.setSerialState,
-    serialState: s.serialState,
-    mock: s.mock,
-    setMock: s.setMock,
-  }));
+  // 셀렉터는 하나씩 고른다. 객체로 묶으면 매번 새 객체라 무한 루프가 난다
+  const onLine = useStore((s) => s.onLine);
+  const setSerialState = useStore((s) => s.setSerialState);
+  const serialState = useStore((s) => s.serialState);
+  const mock = useStore((s) => s.mock);
+  const setMock = useStore((s) => s.setMock);
 
   useEffect(() => {
     setSupported(EzmakerSerial.supported);

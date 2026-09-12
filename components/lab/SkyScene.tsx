@@ -8,7 +8,7 @@ const W = 720;
 const H = 420;
 const GROUND = 340;
 const PLATE_X = 150;
-const CM = 9; // 1cm = 9px
+const CM = 24; // 1cm = 24px. 막대 10cm, 센서는 15cm까지라 크게 잡는다
 
 export function SkyScene() {
   const boundary = useStore((s) => s.boundary);
@@ -106,7 +106,7 @@ export function SkyScene() {
               <g key={i}>
                 <circle cx={cx} cy={GROUND + 24} r="6" fill={lit ? '#f59e0b' : '#a8a29e'} />
                 <text x={cx} y={GROUND + 46} fontSize="10" fill="#78716c" textAnchor="middle">
-                  A{i}
+                  A{i + 1}
                 </text>
               </g>
             );

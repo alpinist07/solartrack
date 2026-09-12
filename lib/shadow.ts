@@ -16,12 +16,31 @@ export type DeviceConfig = {
   threshold: number;
 };
 
+/**
+ * docs/04가 정한 사양상의 배열. 테스트 벡터가 이 값을 쓴다.
+ * 실제로 만든 측정기는 아래 EZMAKER_4CH다.
+ */
 export const DEFAULT_DEVICE: DeviceConfig = {
   plateHeightCm: 25,
   sensorPosCm: [9.1, 14.4, 21.0, 29.8, 43.3],
   sensorAngleDeg: [70, 60, 50, 40, 30],
   threshold: 0.5,
 };
+
+/**
+ * 실제로 만든 측정기. 막대 높이 10cm, 밝기센서 4개.
+ * A0은 거리를 재지 않고 해를 향해 두어 빛이 있는지 판단하는 기준으로 쓴다.
+ * A1·A2·A3만 막대에서 5·10·15cm 떨어져 그림자 경계를 찾는다.
+ */
+export const EZMAKER_4CH: DeviceConfig = {
+  plateHeightCm: 10,
+  sensorPosCm: [5, 10, 15],
+  sensorAngleDeg: [63.4, 45, 33.7],
+  threshold: 0.5,
+};
+
+/** 해를 향해 둔 기준 센서의 채널 번호 */
+export const SUN_CHANNEL = 0;
 
 /**
  * 밝기가 고르면서 이 값보다 어두우면 햇빛이 아니라 퍼진 빛으로 본다.
