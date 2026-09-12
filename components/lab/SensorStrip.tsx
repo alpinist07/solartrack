@@ -11,13 +11,23 @@ export function SensorStrip() {
   const sunNorm = useStore((s) => s.sunNorm);
   const boundary = useStore((s) => s.boundary);
   const cfg = useStore((s) => s.cfg);
+  const range = useStore((s) => s.range);
+
+  const span = (i: number) => {
+    const lo = range.lo[i];
+    const hi = range.hi[i];
+    return Number.isFinite(lo) && Number.isFinite(hi) ? `~` : '—';
+  };
 
   const pair = boundary.kind === 'ok' ? boundary.pair : null;
 
   return (
     <Card>
       <CardContent className="space-y-2">
-        <p className="text-sm text-muted-foreground">밝기센서 4개</p>
+        <div className="flex items-baseline justify-between">
+          <p className="text-sm text-muted-foreground">밝기센서 4개</p>
+          <p className="text-xs text-muted-foreground">원값 · 본 범위</p>
+        </div>
 
         {/* A0은 거리를 재지 않고 해가 떠 있는지만 본다 */}
         <div className="flex items-center gap-3 rounded-md border px-2 py-1.5">
@@ -25,6 +35,7 @@ export function SensorStrip() {
           <span className="w-14 text-right text-sm text-muted-foreground">해 기준</span>
           <Progress value={Number.isFinite(sunNorm) ? sunNorm * 100 : 0} className="h-2 flex-1" />
           <span className="num w-12 text-right text-sm">{raw[0] ?? '—'}</span>
+          <span className="num w-14 text-right text-xs text-muted-foreground">{span(0)}</span>
           <span className="w-10 text-right text-sm text-muted-foreground">
             {!Number.isFinite(sunNorm) ? '—' : sunNorm >= 0.35 ? '맑음' : '가림'}
           </span>
@@ -44,6 +55,7 @@ export function SensorStrip() {
               <span className="num w-14 text-right text-sm text-muted-foreground">{x.toFixed(0)}cm</span>
               <Progress value={valid ? n * 100 : 0} className="h-2 flex-1" />
               <span className="num w-12 text-right text-sm">{raw[i + 1] ?? '—'}</span>
+              <span className="num w-14 text-right text-xs text-muted-foreground">{span(i + 1)}</span>
               <span className="w-10 text-right text-sm text-muted-foreground">{state}</span>
             </div>
           );

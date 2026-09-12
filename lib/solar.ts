@@ -145,3 +145,46 @@ export function datesForTransitAltitude(hmax: number, lat: number): [number, num
   const b = toDay(theta2);
   return a <= b ? [a, b] : [b, a];
 }
+
+/* ---------------------------------------------------------------
+ * 하늘에서의 태양 위치 (고도 + 방위각)
+ * ------------------------------------------------------------- */
+
+/**
+ * 태양의 방위각. 북쪽을 0도로 시계 방향으로 잰다.
+ * 동쪽 90도, 남쪽 180도, 서쪽 270도.
+ */
+export function azimuth(lat: number, decl: number, H: number): number {
+  const alt = altitude(lat, decl, H);
+  const denom = cosD(alt) * cosD(lat);
+  if (Math.abs(denom) < 1e-9) return 180;
+  const cosA = (sinD(decl) - sinD(alt) * sinD(lat)) / denom;
+  const A = toDeg(Math.acos(clamp(cosA, -1, 1)));
+  // 오전(시각이 음수)은 동쪽, 오후는 서쪽
+  return H > 0 ? 360 - A : A;
+}
+
+export type SunPoint = { clockMin: number; alt: number; az: number };
+
+/** 하루 동안 태양이 하늘에 그리는 길. 지평선 아래는 빼고 준다 */
+export function sunPath(lat: number, lon: number, n: number, stepMin = 5): SunPoint[] {
+  const decl = declination(n);
+  const out: SunPoint[] = [];
+  for (let clockMin = 0; clockMin <= 1440; clockMin += stepMin) {
+    const H = hourAngle(trueSolarTimeMin(clockMin, lon, n));
+    const alt = altitude(lat, decl, H);
+    if (alt < 0) continue;
+    out.push({ clockMin, alt, az: azimuth(lat, decl, H) });
+  }
+  return out;
+}
+
+/** 어느 시각의 태양 위치 하나 */
+export function sunAt(lat: number, lon: number, n: number, clockMin: number): SunPoint {
+  const decl = declination(n);
+  const H = hourAngle(trueSolarTimeMin(clockMin, lon, n));
+  return { clockMin, alt: altitude(lat, decl, H), az: azimuth(lat, decl, H) };
+}
+
+/** 절기별 연중 일수. 계절을 견주어 볼 때 쓴다 */
+export const SEASON_DAYS = { 하지: 172, 춘분: 80, 추분: 266, 동지: 355 } as const;

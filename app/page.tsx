@@ -11,6 +11,9 @@ import { BigNumbers } from '@/components/lab/BigNumbers';
 import { LiveChart } from '@/components/lab/LiveChart';
 import { SensorStrip } from '@/components/lab/SensorStrip';
 import { SkyScene } from '@/components/lab/SkyScene';
+import { Simulator } from '@/components/sim/Simulator';
+import { InquiryGallery } from '@/components/inquiry/InquiryGallery';
+import { SessionTable } from '@/components/records/SessionTable';
 import { startMock } from '@/lib/mock';
 import { EzmakerSerial } from '@/lib/serial';
 import { useStore } from '@/store/useStore';
@@ -34,6 +37,7 @@ export default function Page() {
   const serialState = useStore((s) => s.serialState);
   const mock = useStore((s) => s.mock);
   const setMock = useStore((s) => s.setMock);
+  const resetRange = useStore((s) => s.resetRange);
 
   useEffect(() => {
     setSupported(EzmakerSerial.supported);
@@ -111,8 +115,15 @@ export default function Page() {
           >
             {reading ? '수신 중지' : '수신 시작'}
           </Button>
-          <Button size="sm" variant="outline" onClick={() => toast('보정은 3단계에서 넣습니다')}>
-            보정
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              resetRange();
+              toast('범위를 다시 잡아요. 막대를 움직여 그늘과 빛을 한 번씩 보여 주세요');
+            }}
+          >
+            범위 다시 잡기
           </Button>
           <label className="flex items-center gap-2 text-sm">
             <Switch checked={mock} onCheckedChange={setMock} aria-label="모의 모드" />
@@ -146,24 +157,16 @@ export default function Page() {
           </div>
           <LiveChart />
         </TabsContent>
-        <TabsContent value="sim">
-          <Placeholder>5단계에서 날짜와 위도를 바꾸는 시뮬레이터가 들어옵니다.</Placeholder>
+        <TabsContent value="sim" className="mt-4">
+          <Simulator />
         </TabsContent>
-        <TabsContent value="inquiry">
-          <Placeholder>6단계에서 탐구 카드 18개가 들어옵니다.</Placeholder>
+        <TabsContent value="inquiry" className="mt-4">
+          <InquiryGallery />
         </TabsContent>
-        <TabsContent value="records">
-          <Placeholder>7단계에서 기록 표와 내보내기가 들어옵니다.</Placeholder>
+        <TabsContent value="records" className="mt-4">
+          <SessionTable />
         </TabsContent>
       </Tabs>
-    </div>
-  );
-}
-
-function Placeholder({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mt-4 rounded-lg border border-dashed px-4 py-16 text-center text-sm text-muted-foreground">
-      {children}
     </div>
   );
 }

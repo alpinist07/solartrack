@@ -2,7 +2,14 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { DEFAULT_CALIBRATION, normalize, type Calibration } from '@/lib/calibration';
+import {
+  DEFAULT_CALIBRATION,
+  EMPTY_RANGE,
+  normalizeAuto,
+  updateAutoRange,
+  type AutoRange,
+  type Calibration,
+} from '@/lib/calibration';
 import { parseLine } from '@/lib/parser';
 import { EZMAKER_4CH, findBoundary, type Boundary, type DeviceConfig } from '@/lib/shadow';
 import type { SerialState } from '@/lib/serial';
@@ -11,7 +18,7 @@ const CHART_POINTS = 120;
 const MEDIAN_WINDOW = 5;
 
 /** A0이 이보다 어두우면 해가 가려진 것으로 본다 */
-const SUN_PRESENT = 0.35;
+const SUN_PRESENT = 0.2;
 
 const median = (v: number[]): number => {
   const s = v.filter(Number.isFinite).slice().sort((a, b) => a - b);
@@ -30,6 +37,8 @@ type State = {
   norm: number[];
   /** 해 기준 센서의 정규값 */
   sunNorm: number;
+  /** 채널마다 본 적 있는 값의 범위 */
+  range: AutoRange;
   boundary: Boundary;
   history: Point[];
   snapshots: Snapshot[];
@@ -42,7 +51,10 @@ type State = {
   setSerialState: (s: SerialState, message?: string) => void;
   setMock: (v: boolean) => void;
   setCal: (c: Calibration) => void;
+  resetRange: () => void;
   snapshot: () => void;
+  loadSeed: (rows: Snapshot[]) => void;
+  clearSnapshots: () => void;
 };
 
 export const useStore = create<State>()(
@@ -51,6 +63,7 @@ export const useStore = create<State>()(
       raw: [],
       norm: [],
       sunNorm: NaN,
+      range: EMPTY_RANGE,
       boundary: { kind: 'nolight' },
       history: [],
       snapshots: [],
@@ -63,18 +76,20 @@ export const useStore = create<State>()(
       onLine: (line) => {
         const raw = parseLine(line);
         if (!raw) return;
-        const { cal, cfg, history } = get();
+        const { cfg, history } = get();
 
-        const allNorm = normalize(raw, cal);
+        // 보드마다 값의 크기가 달라서(실측은 0~35였다) 본 적 있는 범위로 정규화한다
+        const range = updateAutoRange(get().range, raw);
+        const allNorm = normalizeAuto(raw, range);
         const sunNorm = allNorm[0] ?? NaN;
         // A0은 거리를 재지 않으므로 경계 계산에서 뺀다
         const norm = allNorm.slice(1, 1 + cfg.sensorPosCm.length);
 
-        // 해 기준 센서가 어두우면 그림자를 따질 상황이 아니다
+        const fromShadow = findBoundary(norm, cfg);
+        // A0이 캄캄할 때만 가림으로 본다. A0이 틀려도 그림자 판정을 막지는 않는다
+        const sunBlocked = Number.isFinite(sunNorm) && sunNorm < SUN_PRESENT;
         const boundary: Boundary =
-          Number.isFinite(sunNorm) && sunNorm < SUN_PRESENT
-            ? { kind: 'nolight' }
-            : findBoundary(norm, cfg);
+          sunBlocked && fromShadow.kind !== 'ok' ? { kind: 'nolight' } : fromShadow;
 
         let next = history;
         if (boundary.kind === 'ok') {
@@ -87,12 +102,17 @@ export const useStore = create<State>()(
             -CHART_POINTS,
           );
         }
-        set({ raw, norm, sunNorm, boundary, history: next });
+        set({ raw, norm, sunNorm, range, boundary, history: next });
       },
 
       setSerialState: (serialState, message = '') => set({ serialState, message }),
       setMock: (mock) => set({ mock }),
       setCal: (cal) => set({ cal }),
+      // 자리를 옮겼거나 조명이 바뀌면 범위를 다시 잡는다
+      resetRange: () => set({ range: EMPTY_RANGE }),
+
+      loadSeed: (rows) => set({ snapshots: rows }),
+      clearSnapshots: () => set({ snapshots: [] }),
 
       snapshot: () => {
         const { boundary, snapshots } = get();

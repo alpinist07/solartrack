@@ -90,3 +90,54 @@ export function withDark(cal: Calibration, samples: number[][]): Calibration {
 export function withBright(cal: Calibration, samples: number[][], now = Date.now()): Calibration {
   return { ...cal, bright: medianBySensor(samples), at: now };
 }
+
+/* ---------------------------------------------------------------
+ * 자동 범위 보정
+ *
+ * 보드가 보내는 값의 크기가 기기마다 다르다. 실측 로그에서는 0~1023이 아니라
+ * 0~35 범위였다. 고정된 최대값으로 나누면 전부 그늘로 판정된다.
+ * 그래서 흘러 들어온 값의 최소·최대를 채널마다 기억해 그 폭으로 정규화한다.
+ * 학생이 보정 절차를 몰라도 막대를 한 번 움직이면 범위가 잡힌다.
+ * ------------------------------------------------------------- */
+
+/** 채널별로 본 적 있는 가장 어두운 값과 밝은 값 */
+export type AutoRange = { lo: number[]; hi: number[] };
+
+export const EMPTY_RANGE: AutoRange = { lo: [], hi: [] };
+
+/** 이 폭보다 좁으면 빛과 그늘을 가를 수 없다고 본다 (원값 기준) */
+export const MIN_SPAN = 4;
+
+/** 새 값을 보고 범위를 넓힌다. 순수 함수 */
+export function updateAutoRange(prev: AutoRange, raw: number[]): AutoRange {
+  const lo = raw.slice();
+  const hi = raw.slice();
+  for (let i = 0; i < raw.length; i++) {
+    const v = raw[i];
+    if (!Number.isFinite(v)) {
+      lo[i] = prev.lo[i] ?? NaN;
+      hi[i] = prev.hi[i] ?? NaN;
+      continue;
+    }
+    const pLo = prev.lo[i];
+    const pHi = prev.hi[i];
+    lo[i] = Number.isFinite(pLo) ? Math.min(pLo, v) : v;
+    hi[i] = Number.isFinite(pHi) ? Math.max(pHi, v) : v;
+  }
+  return { lo, hi };
+}
+
+/**
+ * 본 적 있는 범위로 0~1 정규화한다.
+ * 아직 폭이 좁은 채널은 NaN을 돌려 findBoundary가 건너뛰게 한다.
+ */
+export function normalizeAuto(raw: number[], range: AutoRange): number[] {
+  return raw.map((v, i) => {
+    const lo = range.lo[i];
+    const hi = range.hi[i];
+    if (!Number.isFinite(v) || !Number.isFinite(lo) || !Number.isFinite(hi)) return NaN;
+    const span = hi - lo;
+    if (span < MIN_SPAN) return NaN;
+    return Math.min(1, Math.max(0, (v - lo) / span));
+  });
+}
